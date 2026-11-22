@@ -1,0 +1,92 @@
+PROCESS ENVIRONMENT AND RESOURCE-LIMIT SANDBOX
+Live demonstration guide
+
+OPENING (about 30 seconds)
+
+"My project launches a trusted Linux program with settings I choose.
+I can select its environment variables, give it a starting directory,
+and limit its CPU time and file size. The launcher waits for the
+program and tells me how it finished. The changes happen in a child
+process, so my terminal keeps its original settings."
+
+BEFORE CLASS
+
+Use Linux or Ubuntu in WSL. Open the project folder and run:
+
+    make
+    make demo
+
+If make or cc is missing on Ubuntu, install build-essential first.
+The demonstration should finish in a few seconds.
+
+WHAT TO POINT OUT DURING MAKE DEMO
+
+1. Controlled environment and directory
+   The program shows a temporary directory. USP_KEEP was copied from
+   the caller and USP_MODE was added by the launcher. USP_REMOVE was
+   copied then removed, and USP_HIDDEN stayed out of the child
+   environment. The matching program_pid and child_pid show that the
+   child kept its PID when execve replaced its program.
+
+2. File limit
+   Both runs try to write 4,096 bytes. The first finishes normally.
+   The second stops at 1,024 bytes and the launcher reports SIGXFSZ.
+   The byte counts show that a partial file remained until demo cleanup.
+
+3. CPU limit
+   Both runs ask for two seconds of CPU work. With four seconds
+   allowed, the program completes. With one second allowed, Linux
+   sends SIGXCPU and the parent reports the CPU limit failure.
+
+4. Setup errors and ordinary exit
+   A missing directory fails at chdir. A missing executable fails at
+   execve. A shell that deliberately exits with 7 produces an ordinary
+   exit_status=7. The report tells us which case happened.
+
+5. Caller state
+   The directory and original values are printed again. The shell
+   kept them because the setup ran in the child after fork.
+
+HOW TO EXPLAIN THE CODE
+
+- argv contains the program name and positional arguments. The options
+  before -- configure the launcher. The arguments after -- go to the
+  program. envp is the list of NAME=VALUE strings passed to execve.
+- getenv reads a value, setenv writes one and unsetenv removes one.
+  The demo program uses getcwd to display the directory set by chdir.
+- fork creates a child. execve replaces the code running in that child.
+  waitpid collects how it ended and reaps it.
+- getrlimit reads soft and hard limits. setrlimit changes the soft
+  limit, subject to the inherited hard limit. Linux enforces the cap.
+- A small pipe carries the failing setup step and system error to the
+  parent. Successful execve closes that pipe automatically. This lets
+  the parent distinguish setup errors from program exit codes.
+
+QUICK VIVA ANSWERS
+
+Why use C?
+  The assignment calls Unix APIs directly. C shows each call clearly.
+
+Why specify an absolute program path?
+  The child may change directories and start with an empty environment.
+  An absolute path lets execve find the program in either case.
+
+Is CPU limit the same as elapsed time?
+  CPU time counts time spent on the processor. The elapsed field also
+  counts time spent waiting. A sleeping program uses little CPU time.
+
+What is reported if the program is killed?
+  The launcher prints the signal and returns 128 plus its number.
+  On Linux, SIGXCPU is 24 and SIGXFSZ is 25, so those return 152 and 153.
+
+What can this sandbox control?
+  It controls the environment, starting directory and chosen resource
+  limits for trusted programs. Those programs retain user permissions.
+
+ASSIGNMENT MAPPING
+
+CO1, CO3, CO4, CO5 are the assigned course outcomes. Demonstrate Unix
+process concepts, environment handling, limits and error reporting.
+PO2 is addressed by comparing outcomes, PO3 by designing the launcher,
+and PO5 by using Linux, GCC and Make to build and verify it.
+SDG 9 connects through resource-aware and reliable software operation.
